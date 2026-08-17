@@ -1,0 +1,8 @@
+cnpj.db
+.env
+.venv/
+__pycache__/
+*.pyc
+migrate.log
+.migrate_progress.json
+desktop.ini

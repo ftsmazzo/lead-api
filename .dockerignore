@@ -1,0 +1,7 @@
+cnpj.db
+.env
+.git
+.venv
+__pycache__
+*.pyc
+*.md
