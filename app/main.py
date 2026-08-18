@@ -193,12 +193,10 @@ def search_leads(
         args.append(digits(municipio))
     telefone_flag = (com_telefone or "").strip().lower()
     if telefone_flag in {"sim", "true", "1"}:
-        clauses.append(
-            "(NULLIF(BTRIM(e.telefone1), '') IS NOT NULL OR NULLIF(BTRIM(e.telefone2), '') IS NOT NULL)"
-        )
+        clauses.append("(e.telefone1 <> '' OR e.telefone2 <> '')")
     elif telefone_flag in {"nao", "não", "false", "0"}:
         clauses.append(
-            "(NULLIF(BTRIM(e.telefone1), '') IS NULL AND NULLIF(BTRIM(e.telefone2), '') IS NULL)"
+            "(COALESCE(e.telefone1, '') = '' AND COALESCE(e.telefone2, '') = '')"
         )
     socio_flag = (com_socio or "").strip().lower()
     if socio_flag in {"sim", "true", "1"}:
@@ -217,7 +215,6 @@ def search_leads(
             FROM estabelecimento e
             {join_empresas}
             WHERE {where}
-            ORDER BY e.cnpj
             LIMIT %s OFFSET %s
         )
         {GET_LEAD_BY_HITS}
@@ -225,7 +222,11 @@ def search_leads(
     args.extend([limit, offset])
 
     with get_conn() as conn:
-        rows = conn.execute(sql, args).fetchall()
+        conn.execute("SET statement_timeout = '45000'")
+        try:
+            rows = conn.execute(sql, args).fetchall()
+        finally:
+            conn.execute(f"SET statement_timeout = '{settings.statement_timeout_ms}'")
 
     return {
         "count": len(rows),
