@@ -6,7 +6,7 @@ from typing import Any
 
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -57,6 +57,16 @@ def require_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Ke
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     connect_pool()
+    with get_conn() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS push_devices (
+                token TEXT PRIMARY KEY,
+                platform TEXT,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
     yield
     close_pool()
 
@@ -254,6 +264,55 @@ def search_municipios(q: str | None = Query(default=None, min_length=2, max_leng
     with get_conn() as conn:
         rows = conn.execute(sql, args).fetchall()
     return {"items": [dict(row) for row in rows]}
+
+
+@app.post("/v1/devices", dependencies=[Depends(require_api_key)])
+def register_device(payload: dict[str, Any] = Body(...)):
+    token = str(payload.get("token") or "").strip()
+    platform = str(payload.get("platform") or "unknown").strip()[:20]
+    if not token or not (
+        token.startswith("ExponentPushToken") or token.startswith("ExpoPushToken")
+    ):
+        raise HTTPException(status_code=400, detail="Token de push inválido")
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO push_devices (token, platform, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (token) DO UPDATE SET
+                platform = EXCLUDED.platform,
+                updated_at = NOW()
+            """,
+            (token, platform),
+        )
+    return {"ok": True}
+
+
+@app.post("/v1/notifications/test", dependencies=[Depends(require_api_key)])
+def test_notification(payload: dict[str, Any] = Body(default={})):
+    import httpx
+
+    token = str(payload.get("token") or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Informe o token do aparelho")
+    message = {
+        "to": token,
+        "title": payload.get("title") or "Lead API",
+        "body": payload.get("body") or "Notificações ativas neste aparelho.",
+        "sound": "default",
+        "data": {"screen": "ajustes"},
+    }
+    try:
+        res = httpx.post(
+            "https://exp.host/--/api/v2/push/send",
+            json=message,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            timeout=20,
+        )
+        res.raise_for_status()
+        return {"ok": True, "expo": res.json()}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Falha ao enviar push: {exc}") from exc
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

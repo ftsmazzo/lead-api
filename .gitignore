@@ -6,3 +6,5 @@ __pycache__/
 migrate.log
 .migrate_progress.json
 desktop.ini
+mobile/node_modules/
+mobile/.expo/
