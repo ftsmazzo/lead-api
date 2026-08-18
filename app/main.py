@@ -6,14 +6,15 @@ from typing import Any
 
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from psycopg.errors import QueryCanceled
 
 from app.config import settings
 from app.db import close_pool, connect_pool, get_conn
-from app.sql import GET_LEAD, GET_SOCIOS, SEARCH_CNAE, SEARCH_LEADS, SEARCH_MUNICIPIO
+from app.sql import GET_LEAD, GET_LEAD_BY_HITS, GET_SOCIOS
 
 SITUACAO = {
     "01": "Nula",
@@ -77,6 +78,18 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(Exception)
+async def unhandled_error(_request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        raise exc
+    if isinstance(exc, QueryCanceled):
+        return JSONResponse(
+            status_code=504,
+            content={"detail": "Consulta demorou demais. Refine os filtros (UF + situação ou CNAE)."},
+        )
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+
 @app.get("/", include_in_schema=False)
 def panel():
     return FileResponse(STATIC_DIR / "index.html")
@@ -99,14 +112,14 @@ def get_lead(cnpj: str, socios: bool = True):
         raise HTTPException(status_code=400, detail="CNPJ deve ter 14 dígitos")
 
     with get_conn() as conn:
-        lead = conn.execute(GET_LEAD, {"cnpj": code}).fetchone()
+        lead = conn.execute(GET_LEAD, (code,)).fetchone()
         if not lead:
             raise HTTPException(status_code=404, detail="CNPJ não encontrado")
         payload = jsonable(dict(lead))
         if socios and payload:
             payload["socios"] = [
                 jsonable(dict(row))
-                for row in conn.execute(GET_SOCIOS, {"cnpj": code}).fetchall()
+                for row in conn.execute(GET_SOCIOS, (code,)).fetchall()
             ]
         return payload
 
@@ -145,21 +158,48 @@ def search_leads(
             detail="Busca por nome precisa de outro filtro: uf, cnae, situacao ou municipio",
         )
 
-    params = {
-        "cnpj": cnpj_digits if cnpj_digits and len(cnpj_digits) == 14 else None,
-        "cnpj_basico": cnpj_basico or (cnpj_digits if cnpj_digits and len(cnpj_digits) == 8 else None),
-        "uf": uf.upper() if uf else None,
-        "cnae": digits(cnae),
-        "situacao": situacao,
-        "municipio": digits(municipio),
-        "q": q_text,
-        "q_prefix": f"{q_text}%" if q_text else None,
-        "limit": limit,
-        "offset": offset,
-    }
+    clauses = []
+    args: list[Any] = []
+    if cnpj_digits and len(cnpj_digits) == 14:
+        clauses.append("e.cnpj = %s")
+        args.append(cnpj_digits)
+    cnpj_basico_val = cnpj_basico or (cnpj_digits if cnpj_digits and len(cnpj_digits) == 8 else None)
+    if cnpj_basico_val:
+        clauses.append("e.cnpj_basico = %s")
+        args.append(cnpj_basico_val)
+    if uf:
+        clauses.append("e.uf = %s")
+        args.append(uf.upper())
+    if cnae:
+        clauses.append("e.cnae_fiscal = %s")
+        args.append(digits(cnae))
+    if situacao:
+        clauses.append("e.situacao_cadastral = %s")
+        args.append(situacao)
+    if municipio:
+        clauses.append("e.municipio = %s")
+        args.append(digits(municipio))
+    if q_text:
+        clauses.append("(e.nome_fantasia ILIKE %s OR emp.razao_social ILIKE %s)")
+        args.extend([f"{q_text}%", f"{q_text}%"])
+
+    where = " AND ".join(clauses)
+    join_empresas = "LEFT JOIN empresas emp ON emp.cnpj_basico = e.cnpj_basico" if q_text else ""
+    sql = f"""
+        WITH hits AS (
+            SELECT e.cnpj
+            FROM estabelecimento e
+            {join_empresas}
+            WHERE {where}
+            ORDER BY e.cnpj
+            LIMIT %s OFFSET %s
+        )
+        {GET_LEAD_BY_HITS}
+    """
+    args.extend([limit, offset])
 
     with get_conn() as conn:
-        rows = conn.execute(SEARCH_LEADS, params).fetchall()
+        rows = conn.execute(sql, args).fetchall()
 
     return {
         "count": len(rows),
@@ -169,31 +209,34 @@ def search_leads(
     }
 
 
+@app.get("/v1/session", dependencies=[Depends(require_api_key)])
+def session():
+    return {"ok": True}
+
+
 @app.get("/v1/cnaes", dependencies=[Depends(require_api_key)])
 def search_cnaes(q: str | None = Query(default=None, min_length=2, max_length=80)):
+    sql = "SELECT codigo, descricao FROM cnae"
+    args: list[Any] = []
+    if q:
+        sql += " WHERE codigo LIKE %s OR descricao ILIKE %s"
+        args.extend([f"{q}%", f"%{q}%"])
+    sql += " ORDER BY codigo LIMIT 50"
     with get_conn() as conn:
-        rows = conn.execute(
-            SEARCH_CNAE,
-            {
-                "q": q,
-                "q_prefix": f"{q}%" if q else None,
-                "q_like": f"%{q}%" if q else None,
-            },
-        ).fetchall()
+        rows = conn.execute(sql, args).fetchall()
     return {"items": [dict(row) for row in rows]}
 
 
 @app.get("/v1/municipios", dependencies=[Depends(require_api_key)])
 def search_municipios(q: str | None = Query(default=None, min_length=2, max_length=80)):
+    sql = "SELECT codigo, descricao FROM municipio"
+    args: list[Any] = []
+    if q:
+        sql += " WHERE codigo LIKE %s OR descricao ILIKE %s"
+        args.extend([f"{q}%", f"%{q}%"])
+    sql += " ORDER BY descricao LIMIT 50"
     with get_conn() as conn:
-        rows = conn.execute(
-            SEARCH_MUNICIPIO,
-            {
-                "q": q,
-                "q_prefix": f"{q}%" if q else None,
-                "q_like": f"%{q}%" if q else None,
-            },
-        ).fetchall()
+        rows = conn.execute(sql, args).fetchall()
     return {"items": [dict(row) for row in rows]}
 
 

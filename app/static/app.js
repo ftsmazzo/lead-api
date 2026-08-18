@@ -91,8 +91,7 @@ async function login() {
   err.textContent = "";
   localStorage.setItem(KEY, input.value.trim());
   try {
-    await request("/health");
-    await request("/v1/cnaes?q=62");
+    await request("/v1/session")
     showApp(true);
   } catch (e) {
     localStorage.removeItem(KEY);
@@ -269,7 +268,7 @@ detailEl.addEventListener("click", async (e) => {
 
 fillUfs();
 if (apiKey()) {
-  request("/v1/cnaes?q=62")
+  request("/v1/session")
     .then(() => showApp(true))
     .catch(() => showApp(false));
 } else {
