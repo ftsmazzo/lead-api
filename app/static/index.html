@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lead API · Painel</title>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=3" />
 </head>
 <body>
   <div id="login" class="login-wrap hidden">
@@ -62,6 +62,22 @@
         <input id="municipio" name="municipio" list="municipio-list" placeholder="3543402" />
         <datalist id="municipio-list"></datalist>
       </div>
+      <div class="field">
+        <label for="com_telefone">Telefone</label>
+        <select id="com_telefone" name="com_telefone">
+          <option value="">Todos</option>
+          <option value="sim">Com telefone</option>
+          <option value="nao">Sem telefone</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="com_socio">Sócio</label>
+        <select id="com_socio" name="com_socio">
+          <option value="">Todos</option>
+          <option value="sim">Com sócio</option>
+          <option value="nao">Sem sócio</option>
+        </select>
+      </div>
       <button type="submit">Buscar</button>
     </form>
     <p class="hint">Busca por nome exige UF, CNAE, situação ou município. CNPJ de 14 dígitos abre a ficha direto.</p>
@@ -96,6 +112,6 @@
     </div>
   </aside>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

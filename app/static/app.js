@@ -105,18 +105,20 @@ function formParams() {
   const situacao = document.getElementById("situacao").value;
   const cnae = digits(document.getElementById("cnae").value);
   const municipio = digits(document.getElementById("municipio").value);
-  return { q, uf, situacao, cnae, municipio };
+  const com_telefone = document.getElementById("com_telefone").value;
+  const com_socio = document.getElementById("com_socio").value;
+  return { q, uf, situacao, cnae, municipio, com_telefone, com_socio };
 }
 
 async function search(reset) {
   if (reset) offset = 0;
-  const { q, uf, situacao, cnae, municipio } = formParams();
+  const { q, uf, situacao, cnae, municipio, com_telefone, com_socio } = formParams();
   const cnpj = digits(q);
   statusEl.textContent = "Buscando…";
   rowsEl.innerHTML = "";
 
   try {
-    if (cnpj.length === 14 && !uf && !situacao && !cnae && !municipio) {
+    if (cnpj.length === 14 && !uf && !situacao && !cnae && !municipio && !com_telefone && !com_socio) {
       const lead = await request(`/v1/leads/${cnpj}`);
       lastCount = 1;
       renderRows([lead]);
@@ -132,6 +134,8 @@ async function search(reset) {
     if (situacao) params.set("situacao", situacao);
     if (cnae) params.set("cnae", cnae);
     if (municipio) params.set("municipio", municipio);
+    if (com_telefone) params.set("com_telefone", com_telefone);
+    if (com_socio) params.set("com_socio", com_socio);
 
     const data = await request(`/v1/leads?${params}`);
     lastCount = data.count;

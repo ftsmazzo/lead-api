@@ -87,7 +87,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .filters {
   display: grid;
-  grid-template-columns: 2fr 110px 140px 150px 170px auto;
+  grid-template-columns: 2fr 90px 130px 140px 150px 140px 130px auto;
   gap: 12px;
   padding: 16px;
   align-items: end;

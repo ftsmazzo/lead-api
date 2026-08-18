@@ -132,6 +132,8 @@ def search_leads(
     cnae: str | None = None,
     situacao: str | None = Query(default=None, description="01 nula, 02 ativa, 03 suspensa, 04 inapta, 08 baixada"),
     municipio: str | None = None,
+    com_telefone: str | None = Query(default=None, description="sim ou nao"),
+    com_socio: str | None = Query(default=None, description="sim ou nao"),
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0, le=10000),
 ):
@@ -179,6 +181,20 @@ def search_leads(
     if municipio:
         clauses.append("e.municipio = %s")
         args.append(digits(municipio))
+    telefone_flag = (com_telefone or "").strip().lower()
+    if telefone_flag in {"sim", "true", "1"}:
+        clauses.append(
+            "(NULLIF(BTRIM(e.telefone1), '') IS NOT NULL OR NULLIF(BTRIM(e.telefone2), '') IS NOT NULL)"
+        )
+    elif telefone_flag in {"nao", "não", "false", "0"}:
+        clauses.append(
+            "(NULLIF(BTRIM(e.telefone1), '') IS NULL AND NULLIF(BTRIM(e.telefone2), '') IS NULL)"
+        )
+    socio_flag = (com_socio or "").strip().lower()
+    if socio_flag in {"sim", "true", "1"}:
+        clauses.append("EXISTS (SELECT 1 FROM socios so WHERE so.cnpj = e.cnpj)")
+    elif socio_flag in {"nao", "não", "false", "0"}:
+        clauses.append("NOT EXISTS (SELECT 1 FROM socios so WHERE so.cnpj = e.cnpj)")
     if q_text:
         clauses.append("(e.nome_fantasia ILIKE %s OR emp.razao_social ILIKE %s)")
         args.extend([f"{q_text}%", f"{q_text}%"])
