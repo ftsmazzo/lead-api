@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lead API · Painel</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div id="login" class="login-wrap hidden">
+    <div class="login-card">
+      <p class="eyebrow">Lead API</p>
+      <h1>Painel de consulta</h1>
+      <p class="muted">Use a chave da API para acessar a base de CNPJ.</p>
+      <label>
+        API key
+        <input id="api-key-input" type="password" autocomplete="off" placeholder="Cole a chave aqui" />
+      </label>
+      <p id="login-error" class="error"></p>
+      <button id="login-btn" type="button">Entrar</button>
+    </div>
+  </div>
+
+  <div id="app" class="layout hidden">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Lead API</p>
+        <h1>Consulta CNPJ</h1>
+      </div>
+      <button id="logout-btn" class="ghost" type="button">Sair</button>
+    </header>
+
+    <form id="search-form" class="filters">
+      <div class="field grow">
+        <label for="q">CNPJ, razão social ou nome fantasia</label>
+        <input id="q" name="q" placeholder="00.000.000/0001-00 ou nome da empresa" />
+      </div>
+      <div class="field">
+        <label for="uf">UF</label>
+        <select id="uf" name="uf">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="situacao">Situação</label>
+        <select id="situacao" name="situacao">
+          <option value="">Todas</option>
+          <option value="02">Ativa</option>
+          <option value="01">Nula</option>
+          <option value="03">Suspensa</option>
+          <option value="04">Inapta</option>
+          <option value="08">Baixada</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="cnae">CNAE</label>
+        <input id="cnae" name="cnae" list="cnae-list" placeholder="6201501" />
+        <datalist id="cnae-list"></datalist>
+      </div>
+      <div class="field">
+        <label for="municipio">Município (código IBGE)</label>
+        <input id="municipio" name="municipio" list="municipio-list" placeholder="3543402" />
+        <datalist id="municipio-list"></datalist>
+      </div>
+      <button type="submit">Buscar</button>
+    </form>
+    <p class="hint">Busca por nome exige UF, CNAE, situação ou município. CNPJ de 14 dígitos abre a ficha direto.</p>
+
+    <p id="status" class="status"></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>CNPJ</th>
+            <th>Empresa</th>
+            <th>UF</th>
+            <th>Cidade</th>
+            <th>Situação</th>
+            <th>Contato</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <button id="prev-btn" type="button" disabled>Anterior</button>
+      <span id="page-label">—</span>
+      <button id="next-btn" type="button" disabled>Próxima</button>
+    </div>
+  </div>
+
+  <aside id="drawer" class="drawer" hidden>
+    <div class="drawer-inner">
+      <button id="close-drawer" class="ghost" type="button">Fechar</button>
+      <div id="detail"></div>
+    </div>
+  </aside>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -4,8 +4,12 @@ from contextlib import asynccontextmanager
 from decimal import Decimal
 from typing import Any
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db import close_pool, connect_pool, get_conn
@@ -63,12 +67,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+STATIC_DIR = Path(__file__).parent / "static"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/", include_in_schema=False)
+def panel():
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")
@@ -184,3 +195,6 @@ def search_municipios(q: str | None = Query(default=None, min_length=2, max_leng
             },
         ).fetchall()
     return {"items": [dict(row) for row in rows]}
+
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
