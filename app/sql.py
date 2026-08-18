@@ -75,21 +75,35 @@ ORDER BY e.cnpj
 
 GET_SOCIOS = """
 SELECT
-    cnpj,
-    identificador_de_socio,
-    nome_socio,
-    cnpj_cpf_socio,
-    qualificacao_socio,
+    socios.cnpj,
+    socios.identificador_de_socio,
+    socios.nome_socio,
+    socios.cnpj_cpf_socio,
+    socios.qualificacao_socio,
     qs.descricao AS qualificacao_socio_desc,
-    data_entrada_sociedade,
-    pais,
-    representante_legal,
-    nome_representante,
-    qualificacao_representante_legal,
-    faixa_etaria
+    socios.data_entrada_sociedade,
+    socios.pais,
+    socios.representante_legal,
+    socios.nome_representante,
+    socios.qualificacao_representante_legal,
+    socios.faixa_etaria,
+    est.ddd1,
+    est.telefone1,
+    est.ddd2,
+    est.telefone2,
+    est.correio_eletronico
 FROM socios
 LEFT JOIN qualificacao_socio qs ON qs.codigo = socios.qualificacao_socio
-WHERE cnpj = %s
-ORDER BY nome_socio
+LEFT JOIN LATERAL (
+    SELECT ddd1, telefone1, ddd2, telefone2, correio_eletronico
+    FROM estabelecimento
+    WHERE estabelecimento.cnpj_basico = socios.cnpj_cpf_socio
+      AND estabelecimento.matriz_filial = '1'
+      AND socios.identificador_de_socio = '1'
+    ORDER BY estabelecimento.cnpj
+    LIMIT 1
+) est ON TRUE
+WHERE socios.cnpj = %s
+ORDER BY socios.nome_socio
 LIMIT 200
 """

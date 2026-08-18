@@ -63,6 +63,11 @@ export type Socio = {
   nome_representante?: string | null;
   qualificacao_representante_legal?: string | null;
   faixa_etaria?: string | null;
+  ddd1?: string | null;
+  telefone1?: string | null;
+  ddd2?: string | null;
+  telefone2?: string | null;
+  correio_eletronico?: string | null;
 };
 
 export type SearchParams = {

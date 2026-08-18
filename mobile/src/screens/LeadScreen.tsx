@@ -154,6 +154,9 @@ export function LeadScreen({ lead, favorite, onBack, onToggleFavorite }: Props) 
                   label="Qualificação"
                   value={labeled(socio.qualificacao_socio, undefined, socio.qualificacao_socio_desc)}
                 />
+                <Row label="Telefone 1" value={formatPhone(socio.ddd1, socio.telefone1)} />
+                <Row label="Telefone 2" value={formatPhone(socio.ddd2, socio.telefone2)} />
+                <Row label="E-mail" value={dash(socio.correio_eletronico)} />
                 <Row label="Entrada na sociedade" value={formatDate(socio.data_entrada_sociedade)} />
                 <Row label="País" value={dash(socio.pais)} />
                 <Row label="Faixa etária" value={labeled(socio.faixa_etaria, maps.FAIXA)} />

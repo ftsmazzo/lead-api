@@ -182,13 +182,24 @@ async function openDetail(cnpj) {
     const lead = await request(`/v1/leads/${digits(cnpj)}`);
     const tel1 = phone(lead.ddd1, lead.telefone1);
     const tel2 = phone(lead.ddd2, lead.telefone2);
+    const tipoSocio = { "1": "Pessoa jurídica", "2": "Pessoa física", "3": "Estrangeiro" };
     const socios = (lead.socios || [])
-      .map((s) => `
+      .map((s) => {
+        const telS = phone(s.ddd1, s.telefone1);
+        const telS2 = phone(s.ddd2, s.telefone2);
+        return `
         <div class="socio">
           <strong>${s.nome_socio || "—"}</strong><br>
-          <span class="muted">${s.qualificacao_socio_desc || ""} · ${s.cnpj_cpf_socio || ""}</span>
+          <span class="muted">${tipoSocio[s.identificador_de_socio] || s.identificador_de_socio || ""} · ${s.qualificacao_socio_desc || ""} · ${s.cnpj_cpf_socio || ""}</span>
+          <dl class="kv">
+            <dt>Telefone</dt><dd>${telS || "—"} ${telS2 ? " / " + telS2 : ""}</dd>
+            <dt>E-mail</dt><dd>${s.correio_eletronico || "—"}</dd>
+          </dl>
+          ${copyBtn("Copiar telefone do sócio", telS)}
+          ${copyBtn("Copiar e-mail do sócio", s.correio_eletronico)}
         </div>
-      `)
+      `;
+      })
       .join("") || "<p class='muted'>Sem sócios cadastrados.</p>";
 
     detailEl.innerHTML = `
@@ -213,6 +224,7 @@ async function openDetail(cnpj) {
         <dt>E-mail</dt><dd>${lead.correio_eletronico || "—"}</dd>
       </dl>
       <h3>Sócios</h3>
+      <p class="hint">Telefone e e-mail do sócio só aparecem quando ele é pessoa jurídica (contato da matriz). Pessoa física não tem esses dados na Receita.</p>
       ${socios}
     `;
   } catch (e) {

@@ -13,8 +13,8 @@ const PORTE: Record<string, string> = {
 };
 const MATRIZ: Record<string, string> = { "1": "Matriz", "2": "Filial" };
 const TIPO_SOCIO: Record<string, string> = {
-  "1": "Pessoa física",
-  "2": "Pessoa jurídica",
+  "1": "Pessoa jurídica",
+  "2": "Pessoa física",
   "3": "Estrangeiro",
 };
 const FAIXA: Record<string, string> = {
